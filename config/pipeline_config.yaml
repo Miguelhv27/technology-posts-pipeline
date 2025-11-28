@@ -1,0 +1,344 @@
+pipeline:
+  name: "technology_posts_pipeline"
+  version: "1.0"
+  description: "Data pipeline for technology posts analysis from Twitter and Reddit"
+  versioning: true
+  save_intermediate_outputs: true
+  create_timestamped_folders: true
+
+paths:
+  raw_data_dir: "data/raw/"
+  processed_data_dir: "data/processed/"
+  logs_dir: "logs/"
+  models_dir: "models/"
+  outputs_dir: "outputs/"
+
+data_sources:
+  twitter:
+    enabled: true
+    api_required: false   
+    use_mock_data: true   
+    mock_data_path: "data/raw/twitter_mock_data.csv"
+    search_queries:
+      - "AI technology"
+      - "machine learning"
+    max_tweets: 200  
+    lang: "en"
+    
+  reddit:
+    enabled: true
+    api_required: false     
+    use_mock_data: false    
+    mock_data_path: "data/raw/reddit_mock_data.csv"
+    dataset_source: "kaggle"
+    kaggle_dataset: "curiel/rtechnology-posts-and-comments"
+    subreddits:
+      - "artificial"
+      - "MachineLearning"
+    limit_posts: 100
+
+apis:
+  twitter:
+    api_key: "${TWITTER_API_KEY}"
+    api_secret: "${TWITTER_API_SECRET}"
+    bearer_token: "${TWITTER_BEARER_TOKEN}"
+    access_token: "${TWITTER_ACCESS_TOKEN}"
+    access_token_secret: "${TWITTER_ACCESS_TOKEN_SECRET}"
+    
+  reddit:
+    client_id: "${REDDIT_CLIENT_ID}"
+    client_secret: "${REDDIT_CLIENT_SECRET}"
+    user_agent: "technology_posts_pipeline_v1.0"
+    username: "${REDDIT_USERNAME}"
+    password: "${REDDIT_PASSWORD}"
+
+ingestion:
+  enabled: true
+  overwrite_raw: false
+  file_extensions:
+    - .csv
+    - .json
+    - .parquet
+  batch_size: 100
+  max_retries: 3
+  retry_delay: 5
+
+validation:
+  enabled: true
+  required_columns:
+    twitter:
+      - "id"
+      - "created_at"
+      - "text"
+      - "user_id"
+      - "retweet_count"
+      - "favorite_count"
+    reddit:
+      - "id"
+      - "created_utc"
+      - "title"
+      - "selftext"
+      - "num_comments"
+      - "score"
+      - "subreddit"
+  check_null_columns:
+    - "title"
+    - "created_utc"
+    - "text"
+    - "created_at"
+  allowed_date_range:
+    start: "2015-01-01"
+    end: "2030-01-01"
+  quality_thresholds:
+    min_sentiment_confidence: 0.6
+    max_null_percentage: 0.1
+
+transformation:
+  enabled: true
+  text_cleaning:
+    lowercase: true
+    remove_urls: true
+    remove_html: true
+    remove_special_chars: true
+    remove_stopwords: true
+    remove_punctuation: true
+    lemmatize: true
+  feature_engineering:
+    word_count: true
+    title_length: true
+    sentiment: true
+    topic_modeling: true
+    engagement_metrics: true
+    time_features: true
+  engagement_metrics:
+    - "total_engagement"
+    - "engagement_rate"
+    - "virality_score"
+
+nlp:
+  enabled: true
+  sentiment:
+    use_vader: true
+    use_textblob: false
+    min_confidence: 0.7
+  topic_modeling:
+    method: "lda"
+    num_topics: 5 
+    max_features: 1000  
+    min_df: 2
+    max_df: 0.8
+  entity_recognition:
+    enabled: true
+    entities: ["PERSON", "ORG", "PRODUCT"]
+
+network_analysis:
+  enabled: true
+  platform: "twitter"  
+  metrics:
+    - "pagerank"
+    - "betweenness_centrality"
+    - "degree_centrality"
+    - "eigenvector_centrality"
+  influencer_threshold: 0.8
+  min_connections: 10
+  community_detection: true
+
+commercial_data:
+  enabled: true
+  sources:
+    amazon:
+      enabled: true
+      mock_data_path: "data/raw/commercial_data.csv"
+    sephora:
+      enabled: true  
+    restaurant:
+      enabled: true
+    steam:
+      enabled: true
+    supplements:
+      enabled: true
+
+analysis:
+  enabled: true
+  correlation_method: "pearson"
+  min_correlation_threshold: 0.6
+  statistical_tests:
+    anova: true
+    ttest: true
+    normality_tests: true
+    tukey_test: true  
+    two_way_anova: true  
+  correlations:
+    volume_vs_engagement: true
+    influencer_activity_vs_virality: true
+    sentiment_vs_commercial_metrics: true
+    cross_platform_correlation: true
+    twitter_amazon_correlation: true
+    tiktok_sephora_correlation: true  
+    twitch_steam_correlation: true
+    instagram_restaurant_correlation: true
+    instagram_supplements_correlation: true
+  time_window: "7d"
+  project_specific_metrics:
+    volume_mentions_vs_engagement: true
+    influencer_activity_vs_virality: true
+    cross_platform_consistency: true
+
+timeseries:
+  enabled: true
+  frequency: "D"
+  aggregation:
+    compute_mean_score: true
+    compute_total_comments: true
+    compute_mean_sentiment: true
+    compute_volume_trends: true
+    compute_daily_posts: true
+    compute_engagement_trends: true
+  decomposition:
+    apply: true
+    model: "additive"
+    period: 7
+  forecasting:
+    enabled: false
+  advanced_analysis:
+    arima: true
+    seasonal_decomposition: true
+    granger_causality: true  
+    cross_correlation: true  
+
+observability:
+  logging_level: "INFO"
+  log_format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  metrics:
+    track_runtime: true
+    track_memory: true
+    track_data_quality: true
+  dashboard:
+    enabled: true
+    platform: "streamlit"
+    update_frequency: "daily"
+
+alerts:
+  sentiment_drop:
+    enabled: true
+    threshold: -0.3
+    window_days: 3
+    consecutive_days: 2
+    action: "Investigar causa raíz"
+    
+  trend_volume_mismatch:
+    enabled: true
+    mentions_increase_threshold: 1.5
+    sales_decrease_threshold: 0.6
+    check_cross_platform: true
+    discrepancy_threshold: 0.4  
+    action: "Revisar funnel comercial"
+    
+  influencer_impact:
+    enabled: true
+    spike_threshold: 2.0
+    detection_window: 7 
+    roi_attribution: true
+    action: "Atribuir ROI, escalar"
+    
+  correlation_alert:
+    enabled: true
+    threshold: 0.3
+    platform: "cross_platform"
+  
+  seasonal_pattern_break:
+    enabled: true
+    deviation_threshold: 2.0  
+    action: "Ajustar forecast"
+    
+  cross_platform_consistency:
+    enabled: true
+    correlation_threshold: 0.3
+    duration_threshold: 7  
+    action: "Revisar estrategia multired"
+
+cross_correlations:
+  enabled: true
+  datasets:
+    - source: "twitter"
+      target: "amazon"
+      metric: "menciones_producto_vs_sales_velocity"
+      optimal_period: "semanal"
+      threshold: 0.6
+    - source: "tiktok" 
+      target: "sephora"
+      metric: "hashtag_popularity_vs_review_volume"
+      optimal_period: "diario"
+      threshold: 0.5
+    - source: "twitch"
+      target: "steam"
+      metric: "concurrent_viewers_vs_game_purchases"
+      optimal_period: "horario"
+      threshold: 0.7
+    - source: "instagram"
+      target: "restaurant"
+      metric: "post_engagement_vs_revenue_trends"
+      optimal_period: "diario"
+      threshold: 0.4
+    - source: "instagram"
+      target: "supplements"
+      metric: "influencer_mentions_vs_product_sales"
+      optimal_period: "semanal"
+      threshold: 0.5
+
+export:
+  save_parquet: true
+  save_csv: false
+  save_json: false
+  compression: "snappy"
+  include_metadata: true
+  formats:
+    - "analysis_results"
+    - "visualizations"
+    - "model_artifacts"
+
+ci_cd:
+  tests_on_push: true
+  deploy_on_success: false
+  environment: "development"
+  notifications:
+    on_failure: true
+    on_success: false
+
+technology_posts:
+  domains:
+    - "Artificial Intelligence"
+    - "Machine Learning"
+    - "Data Engineering"
+    - "Cloud Computing"
+    - "DataOps/MLOps"
+  key_metrics:
+    primary: "engagement_rate"
+    secondary: "sentiment_score"
+    business: "influencer_impact"
+    correlation_metrics:
+      - "volume_mentions_vs_reddit_engagement"
+      - "influencer_activity_vs_post_virality"
+      - "twitter_amazon_cross_correlation"
+  correlation_periods:
+    short_term: "1d"
+    medium_term: "7d"
+    long_term: "30d"
+  significance_thresholds:
+    pearson_min: 0.6
+    spearman_min: 0.5
+    p_value_max: 0.05
+    confidence_level: 0.95
+
+dataops_metrics:
+  data_quality:
+    completeness_threshold: 0.95
+    accuracy_threshold: 0.90
+    consistency_threshold: 0.98
+  pipeline_performance:
+    max_execution_time: 3600  
+    success_rate_threshold: 0.95
+    error_rate_threshold: 0.05
+  observability:
+    log_retention_days: 30
+    metric_retention_days: 90

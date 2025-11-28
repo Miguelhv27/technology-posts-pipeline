@@ -1,0 +1,20 @@
+﻿# DATOS - NO SUBIR
+data/
+logs/
+outputs/
+
+# PYTHON
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# SISTEMA
+.DS_Store
+Thumbs.db
