@@ -78,4 +78,4 @@ class TestDataIngestion:
         # Verificar que añadió la columna de trazabilidad
         df_result = pd.read_csv(result_path)
         assert 'data_source' in df_result.columns
-        assert df_result['data_source'].iloc[0] == 'reddit'
+        assert df_result['data_source'].iloc[0] == 'reddit_kaggle'
