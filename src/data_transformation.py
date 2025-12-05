@@ -54,7 +54,7 @@ class DataTransformation:
         return re.sub(r"\s+", " ", text).strip()
 
     def extract_features(self, df):
-        """Feature Engineering - Removing dependency on unreliable karma/followers"""
+        """Feature Engineering - Robust & Positive Engagement"""
         df_feat = df.copy()
         
         if 'text' in df_feat.columns:
@@ -71,13 +71,15 @@ class DataTransformation:
             df_feat['user_followers_count'] = 0
 
         if 'retweet_count' in df_feat.columns:
-            df_feat['twitter_engagement'] = df_feat['retweet_count'].fillna(0) + df_feat['favorite_count'].fillna(0)
+            rt = df_feat['retweet_count'].fillna(0).abs()
+            fav = df_feat['favorite_count'].fillna(0).abs()
+            df_feat['twitter_engagement'] = rt + fav
         else:
             df_feat['twitter_engagement'] = 0
             
         if 'score' in df_feat.columns:
-            comments = df_feat['comments'].fillna(0) if 'comments' in df_feat.columns else 0
-            df_feat['reddit_engagement'] = df_feat['score'].fillna(0) + (comments * 2)
+            comments = df_feat['comments'].fillna(0).abs() if 'comments' in df_feat.columns else 0
+            df_feat['reddit_engagement'] = df_feat['score'].fillna(0).abs() + (comments * 2)
         else:
             df_feat['reddit_engagement'] = 0
             

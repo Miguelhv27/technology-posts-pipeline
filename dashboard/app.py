@@ -4,7 +4,7 @@ import plotly.express as px
 import json
 import os
 from datetime import datetime
-from PIL import Image
+import numpy as np
 
 # ==============================================================================
 # 1. CONFIGURACION DE PAGINA
@@ -30,6 +30,12 @@ st.markdown("""
     .sub-header {
         font-size: 1.1rem; color: #6c757d; margin-bottom: 20px;
     }
+    .alert-card {
+        padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 5px solid;
+    }
+    .alert-critical { background-color: #fce8e6; border-color: #ea4335; color: #b31412; }
+    .alert-warning { background-color: #fef7e0; border-color: #fbbc04; color: #b06000; }
+    .alert-info { background-color: #e8f0fe; border-color: #4285f4; color: #1a73e8; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -147,10 +153,11 @@ with k4:
 st.markdown("---")
 
 # --- TABS ---
-tab_overview, tab_reddit, tab_stats, tab_nlp = st.tabs([
+tab_overview, tab_alerts, tab_reddit, tab_stats, tab_nlp = st.tabs([
     "Vision General", 
+    "Alertas y Anomalias", # NUEVA PESTAÑA
     "Analisis Detallado Reddit", 
-    "Estadistica", 
+    "Analisis de Impacto", 
     "NLP y Temas"
 ])
 
@@ -178,7 +185,87 @@ with tab_overview:
             )
             st.plotly_chart(fig_pie, use_container_width=True)
 
-# 2. DEEP DIVE REDDIT
+# 2. ALERTAS Y ANOMALÍAS (NUEVA LÓGICA)
+with tab_alerts:
+    st.subheader("Monitor de Salud del Ecosistema")
+    st.caption("Deteccion automatica de anomalias basadas en desviacion estandar y umbrales operativos.")
+    
+    col_a, col_b = st.columns([1, 2])
+    
+    # --- LOGICA DE ALERTAS ---
+    alerts_found = []
+    
+    # A. Alerta de Sentimiento (Threshold Negativo)
+    if 'sentiment_compound' in df_filtered.columns:
+        # Agrupar por dia para ver tendencia
+        if 'created_at' in df_filtered.columns:
+            daily_sent = df_filtered.groupby(pd.Grouper(key='created_at', freq='D'))['sentiment_compound'].mean()
+            # Chequear ultimos 3 periodos con datos
+            recent_sent = daily_sent.tail(3)
+            if not recent_sent.empty and (recent_sent < -0.1).any():
+                bad_days = recent_sent[recent_sent < -0.1].index.strftime('%Y-%m-%d').tolist()
+                alerts_found.append({
+                    "level": "critical", 
+                    "title": "Caida Critica de Sentimiento",
+                    "msg": f"El sentimiento promedio fue negativo (< -0.1) en los dias: {', '.join(bad_days)}"
+                })
+    
+    # B. Alerta de Volumen (Z-Score > 2)
+    if 'created_at' in df_filtered.columns:
+        daily_vol = df_filtered.groupby(pd.Grouper(key='created_at', freq='D')).size()
+        if len(daily_vol) > 5:
+            mean_vol = daily_vol.mean()
+            std_vol = daily_vol.std()
+            # Detectar dias con Z-score > 2 (2 desviaciones estandar)
+            anomalies = daily_vol[daily_vol > (mean_vol + 2 * std_vol)]
+            if not anomalies.empty:
+                dates_str = anomalies.index.strftime('%Y-%m-%d').tolist()
+                alerts_found.append({
+                    "level": "warning", 
+                    "title": "Anomalia de Volumen Detectada",
+                    "msg": f"Se detecto trafico inusualmente alto (> 2 sigma) en: {', '.join(dates_str)}"
+                })
+
+    # C. Alerta de Correlacion Debil
+    stats = data_bundle.get('statistical')
+    if stats and 'correlations' in stats:
+        for k, v in stats['correlations'].items():
+            if abs(v.get('correlation', 0)) < 0.3:
+                alerts_found.append({
+                    "level": "info",
+                    "title": f"Correlacion Debil: {k}",
+                    "msg": "La relacion entre estas variables es insignificante (< 0.3), indicando independencia."
+                })
+
+    # --- RENDERIZADO DE ALERTAS ---
+    with col_a:
+        st.metric("Total Alertas Activas", len(alerts_found))
+        
+        if not alerts_found:
+            st.success("Sistema estable. No se detectaron anomalías operativas.")
+        
+        for alert in alerts_found:
+            css_class = f"alert-{alert['level']}"
+            
+            st.markdown(f"""
+            <div class="alert-card {css_class}">
+                <strong>{alert['title']}</strong><br>
+                {alert['msg']}
+            </div>
+            """, unsafe_allow_html=True)
+
+    with col_b:
+        if 'created_at' in df_filtered.columns and not df_daily.empty:
+            mean_line = df_daily['count'].mean()
+            std_line = df_daily['count'].std()
+            
+            fig_control = px.line(df_daily, x='created_at', y='count', title="Grafico de Control: Volumen Diario", labels={'created_at': 'Fecha del Evento', 'count': 'Cantidad de Posts'})
+            fig_control.add_hline(y=mean_line, line_dash="dash", line_color="green", annotation_text="Promedio")
+            fig_control.add_hline(y=mean_line + 2*std_line, line_dash="dot", line_color="red", annotation_text="Umbral Anomalia")
+            
+            st.plotly_chart(fig_control, use_container_width=True)
+
+# 3. DEEP DIVE REDDIT
 with tab_reddit:
     df_reddit = df_filtered[df_filtered['data_source'].str.contains('reddit', case=False)]
     
@@ -197,7 +284,20 @@ with tab_reddit:
 
         with c2:
             st.markdown("#### Distribucion de Engagement")
-            fig_hist = px.histogram(df_reddit, x='total_engagement', nbins=30, title="Histograma de Interacciones")
+            fig_hist = px.histogram(
+                df_reddit, 
+                x='total_engagement', 
+                nbins=30, 
+                title="Histograma de Interacciones",
+                color_discrete_sequence=['#3366CC'] 
+            )
+        
+            fig_hist.update_layout(
+                xaxis_title="Nivel de Engagement (Interacciones)",
+                yaxis_title="Cantidad de Posts", 
+                bargap=0.1 
+            )
+            
             st.plotly_chart(fig_hist, use_container_width=True)
             
         with st.expander("Ver Datos Crudos de Reddit (Top 50 por Engagement)"):
@@ -210,39 +310,27 @@ with tab_reddit:
     else:
         st.warning("No hay datos de Reddit para mostrar con los filtros actuales.")
 
-# 3. ESTADISTICA (CORREGIDA)
-with tab_stats:
+# 4. ANALISIS DE IMPACTO
+with tab_stats:  
+    st.subheader("Correlaciones")
+    st.caption("Magnitud de la relacion entre las variables clave del negocio.")
+    
     stats = data_bundle.get('statistical')
+    
     if stats and 'correlations' in stats:
-        st.subheader("Matriz de Correlaciones (Validacion de Hipotesis)")
-        corr_list = []
-        for k, v in stats['correlations'].items():
-            
-            # --- CORRECCIÓN AQUÍ: FORMATO CIENTÍFICO ---
-            p_val = v.get('p_value', 1)
-            
-            if p_val == 0:
-                p_text = "< 1e-100"  
-            elif p_val < 0.0001:
-                p_text = f"{p_val:.2e}"
-            else:
-                p_text = f"{p_val:.4f}"
-
-
-            corr_list.append({
-                "Hipotesis": k.replace('_', ' ').title(),
-                "Coeficiente (r)": f"{v.get('correlation', 0):.3f}",
-                "P-Value": p_text, # Usamos el texto formateado
-                "Significativo": "SI" if v.get('significant') else "NO",
-                "Metodo": v.get('method_used', '').upper()
-            })
-        st.dataframe(pd.DataFrame(corr_list), use_container_width=True)
+        cols = st.columns(len(stats['correlations']))
+        for idx, (k, v) in enumerate(stats['correlations'].items()):
+            r = v.get('correlation', 0)
+            with cols[idx]:
+                st.markdown(f"**{k.replace('_', ' ').title()}**")
+                st.metric(label="Coeficiente (r)", value=f"{r:.3f}", label_visibility="collapsed")
     else:
-        st.info("No se encontraron resultados estadisticos.")
+        st.info("No se encontraron resultados estadisticos calculados.")
 
-    # Dispersión
+    st.divider()
+
     if 'sentiment_compound' in df_filtered.columns and 'total_engagement' in df_filtered.columns:
-        st.markdown("#### Dispersion: Sentimiento vs Engagement")
+        st.subheader(" Exploracion Visual")
         fig_scatter = px.scatter(
             df_filtered, 
             x="sentiment_compound", 
@@ -250,11 +338,19 @@ with tab_stats:
             color="data_source",
             size="word_count",
             hover_data=["text_cleaned"],
-            color_discrete_sequence=px.colors.qualitative.Bold
+            title="Mapa de Dispersion: Sentimiento vs Engagement",
+            color_discrete_sequence=px.colors.qualitative.Bold,
+            opacity=0.6
+        )
+        fig_scatter.update_layout(
+            xaxis_title="Sentimiento (-1 Negativo a +1 Positivo)",
+            yaxis_title="Engagement Total",
+            plot_bgcolor="rgba(0,0,0,0)",
+            height=500
         )
         st.plotly_chart(fig_scatter, use_container_width=True)
 
-# 4. NLP & TOPICS
+# 5. NLP & TOPICS
 with tab_nlp:
     c1, c2 = st.columns(2)
     with c1:
