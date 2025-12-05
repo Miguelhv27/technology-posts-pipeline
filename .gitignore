@@ -3,6 +3,10 @@ data/
 logs/
 outputs/
 
+# TEST CACHE 
+.pytest_cache/
+.coverage
+
 # PYTHON
 __pycache__/
 *.pyc

@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
-from src.nlp import NLPProcessor
 import numpy as np
+from src.nlp import NLPProcessor
 
 class TestNLPProcessor:
     
@@ -11,58 +11,109 @@ class TestNLPProcessor:
         
         assert nlp.config == sample_config
         assert nlp.nlp_config == sample_config["nlp"]
+        assert hasattr(nlp, 'lemmatizer')
+        assert hasattr(nlp, 'vader_analyzer')
     
     def test_preprocess_text(self, sample_config):
-        """Test text preprocessing"""
+        """Test text preprocessing (Cleaning + Lemmatization)"""
         nlp = NLPProcessor(sample_config)
         
-        text = "This is a sample text with URL: http://example.com and SOME Capitalized WORDS!"
+        text = "This is a sample text with URL: http://example.com and Running codes!"
         processed = nlp.preprocess_text(text)
 
-        assert "http://" not in processed  
+        assert "http" not in processed  
         assert "example.com" not in processed  
+        
         assert processed == processed.lower()  
         
-        assert "://" not in processed
+        assert "url" in processed 
+        assert "sample" in processed
     
-    def test_analyze_sentiment_vader(self, sample_config):
-        """Test VADER sentiment analysis"""
+    def test_analyze_sentiment_dataframe(self, sample_config):
+        """Test VADER sentiment analysis on DataFrame"""
         nlp = NLPProcessor(sample_config)
         
-        positive_text = "I love this amazing product!"
-        result = nlp.analyze_sentiment_vader(positive_text)
+        df = pd.DataFrame({
+            'text_cleaned': [
+                "i love this amazing technology",
+                "this is terrible and bad",      
+                "it is a book"                    
+            ]
+        })
         
-        assert 'compound' in result
-        assert 'neg' in result  
-        assert 'neu' in result   
-        assert 'pos' in result  
+        df_result = nlp.analyze_sentiment(df)
         
-        assert result['compound'] > 0
-        assert result['pos'] > result['neg'] 
+        assert 'sentiment_compound' in df_result.columns
+        assert 'sentiment_label' in df_result.columns
+        
+        assert df_result.iloc[0]['sentiment_label'] == 'positive'
+        assert df_result.iloc[1]['sentiment_label'] == 'negative'
+        assert df_result.iloc[0]['sentiment_compound'] > 0
     
-    def test_get_sentiment_label(self, sample_config):
-        """Test sentiment label assignment"""
+    def test_extract_tech_entities(self, sample_config):
+        """Test technology keyword extraction from DataFrame"""
         nlp = NLPProcessor(sample_config)
         
-        assert nlp.get_sentiment_label(0.8) == "positive"
-        assert nlp.get_sentiment_label(-0.8) == "negative"
-        assert nlp.get_sentiment_label(0.02) == "neutral"
-        assert nlp.get_sentiment_label(-0.02) == "neutral"
+        sample_config['technology_posts']['domains'] = ['AI', 'Python']
+        nlp = NLPProcessor(sample_config) 
+        
+        df = pd.DataFrame({
+            'text_cleaned': [
+                "learning python is great for ai", 
+                "cooking pasta is fun"
+            ]
+        })
+        
+        df_result = nlp.extract_tech_entities(df)
+        
+        assert 'tech_keywords' in df_result.columns
+        
+        keywords_found = df_result.iloc[0]['tech_keywords']
+        assert 'Python' in keywords_found
+        assert 'AI' in keywords_found
+        
+        assert len(df_result.iloc[1]['tech_keywords']) == 0
     
-    def test_extract_technology_keywords(self, sample_config):
-        """Test technology keyword extraction"""
+    def test_topic_modeling_flow(self, sample_config):
+        """Test LDA topic modeling execution"""
         nlp = NLPProcessor(sample_config)
         
-        text = "This is about Artificial Intelligence and Machine Learning"
-        keywords = nlp.extract_technology_keywords(text)
+        df = pd.DataFrame({
+            'text_cleaned': ["data science machine learning"] * 15 
+        })
         
-        assert "Artificial Intelligence" in keywords
-        assert "Machine Learning" in keywords
+        df_result, topics = nlp.perform_topic_modeling(df)
+        
+        assert isinstance(topics, list)
+        if len(topics) > 0:
+            assert isinstance(topics[0], str)
     
+    def test_run_pipeline_integration(self, sample_config):
+        """Test the full run() method"""
+        nlp = NLPProcessor(sample_config)
+        
+        df = pd.DataFrame({
+            'text': ["Original text about AI"],
+            'title': ["Title"]
+        })
+        
+        df_final, results = nlp.run(df)
+        
+        assert 'text_cleaned' in df_final.columns
+        assert 'sentiment_label' in df_final.columns
+        assert 'tech_keywords' in df_final.columns
+        
+        assert 'sentiment_distribution' in results
+        assert 'topics' in results
+
     def test_nlp_disabled(self, sample_config):
         """Test NLP when disabled in config"""
         config = sample_config.copy()
         config["nlp"]["enabled"] = False
         
         nlp = NLPProcessor(config)
-        assert nlp.config == config
+        df = pd.DataFrame({'text': ['hello world']})
+        
+        df_result, results = nlp.run(df)
+        assert results.get('topics') == []
+        assert len(df_result) == 1
