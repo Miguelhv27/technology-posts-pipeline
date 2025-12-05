@@ -24,7 +24,7 @@ class DataTransformation:
                 elif file_path.endswith('.parquet'): df = pd.read_parquet(file_path)
                 else: continue
                 
-                if source_type == 'reddit':
+                if 'reddit' in source_type.lower():
                     rename_map = {
                         'post_id': 'id',
                         'datetime': 'created_at',
