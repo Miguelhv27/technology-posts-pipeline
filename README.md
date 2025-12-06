@@ -1,4 +1,4 @@
-##### Technology Posts Analytics Pipeline
+# Technology Posts Analytics Pipeline
 
 ### Proyecto Final Monitoreo de Tendencias Tecnológicas y Desempeño en Redes Sociales
 
@@ -8,13 +8,13 @@ Miguel Ángel Hernández Vargas.
 
 Este proyecto desarrolla una arquitectura resiliente para analizar conversaciones tecnológicas en redes sociales, específicamente Twitter y Reddit. A diferencia de los enfoques tradicionales basados en datos estáticos, el sistema prioriza la automatización, la calidad continua y la gobernanza estadística. El pipeline combina datos históricos reales con simulaciones de flujo en tiempo real para generar información confiable sobre viralidad, sentimiento y tópicos de discusión, garantizando la integridad del dato desde la ingesta hasta la visualización.
 
-### Objetivos
+# Objetivos
 
-# Objetivo General
+## Objetivo General
 
 Diseñar e implementar un pipeline automatizado, versionado y observable que integre datos no estructurados de redes sociales, aplicando técnicas avanzadas de NLP y estadística inferencial para correlacionar métricas de actividad digital, asegurando la reproducibilidad y robustez del sistema mediante prácticas de CI.
 
-# Objetivos Específicos
+## Objetivos Específicos
 
 El proyecto se estructuró en cuatro ejes técnicos centrales:
 
