@@ -165,7 +165,7 @@ tab_overview, tab_alerts, tab_reddit, tab_stats, tab_nlp = st.tabs([
 with tab_overview:
     c1, c2 = st.columns(2)
     with c1:
-        st.subheader("Volumen Diario por Fuente")
+        st.subheader("Volumen Diario")
         if not df_filtered.empty and 'created_at' in df_filtered.columns:
             df_daily = df_filtered.groupby([pd.Grouper(key='created_at', freq='D'), 'data_source']).size().reset_index(name='count')
             fig = px.line(df_daily, x='created_at', y='count', color='data_source', markers=True)
@@ -234,7 +234,7 @@ with tab_alerts:
                 alerts_found.append({
                     "level": "info",
                     "title": f"Correlacion Debil: {k}",
-                    "msg": "La relacion entre estas variables es insignificante (< 0.3), indicando independencia."
+                    "msg": "La relacion entre estas variables es baja (< 0.3), indicando independencia."
                 })
 
     # --- RENDERIZADO DE ALERTAS ---
@@ -313,7 +313,6 @@ with tab_reddit:
 # 4. ANALISIS DE IMPACTO
 with tab_stats:  
     st.subheader("Correlaciones")
-    st.caption("Magnitud de la relacion entre las variables clave del negocio.")
     
     stats = data_bundle.get('statistical')
     
@@ -330,7 +329,6 @@ with tab_stats:
     st.divider()
 
     if 'sentiment_compound' in df_filtered.columns and 'total_engagement' in df_filtered.columns:
-        st.subheader(" Exploracion Visual")
         fig_scatter = px.scatter(
             df_filtered, 
             x="sentiment_compound", 
