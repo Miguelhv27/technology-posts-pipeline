@@ -102,7 +102,7 @@ El sistema produce logs estructurados para auditar la ejecución: inicio de inge
 
 Tras la ejecución de las pruebas unitarias, el flujo de integración continua quedó validado en GitHub Actions. La siguiente captura evidencia una ejecución exitosa del workflow, mostrando que el pipeline fue activado automáticamente con cada cambio en el repositorio, completó todas las etapas configuradas y generó los artefactos resultantes sin errores. Esta verificación visual respalda la confiabilidad operativa del sistema y confirma que los mecanismos de CI funcionan correctamente en el entorno remoto.
 
-![Ejecución exitosa del pipeline CI en GitHub Actions](run_ci.png)
+![Ejecución exitosa del pipeline CI en GitHub Actions](images/run_ci.png)
 
 # Reflexión sobre Principios DataOps
 
